@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="500" height="500">
+
+<rect width="500" height="500" fill="#e4e7eb"/>
+
+<circle
+  cx="250"
+  cy="185"
+  r="90"
+  fill="#b8bec6"
+/>
+
+<path
+  d="M90 500
+     C110 385 180 325 250 325
+     C320 325 390 385 410 500"
+  fill="#b8bec6"
+/>
+
+</svg>
