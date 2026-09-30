@@ -1,0 +1,558 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: Georgia, "Times New Roman", serif;
+
+  background: linear-gradient(
+    135deg,
+    #faf9f7,
+    #eef1f4,
+    #e4e8ed
+  );
+
+  color: #171717;
+}
+
+
+/* =========================
+   PROFILE CARD
+========================= */
+
+.profile-card {
+  width: 100%;
+  max-width: 720px;
+  min-height: 100vh;
+
+  margin: auto;
+
+  text-align: center;
+
+  background: rgba(255, 255, 255, 0.72);
+
+  overflow: hidden;
+
+  box-shadow:
+    0 15px 45px rgba(0, 0, 0, 0.08);
+}
+
+
+/* =========================
+   COVER
+========================= */
+
+.cover {
+  width: 100%;
+
+  height: 390px;
+
+  position: relative;
+
+  overflow: hidden;
+
+  background: #eeeeee;
+}
+
+.cover img {
+  width: 100%;
+  height: 100%;
+
+  object-fit: cover;
+
+  display: block;
+}
+
+
+/* التدرج في أسفل الكوفر */
+
+.cover::after {
+  content: "";
+
+  position: absolute;
+
+  left: 0;
+  right: 0;
+  bottom: 0;
+
+  height: 230px;
+
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 0.25),
+    rgba(255, 255, 255, 0.65),
+    rgba(255, 255, 255, 0.92),
+    rgba(255, 255, 255, 1)
+  );
+
+  pointer-events: none;
+
+  z-index: 2;
+}
+
+
+/* =========================
+   PROFILE PHOTO
+========================= */
+
+.profile-picture {
+  width: 150px;
+  height: 150px;
+
+  margin: -75px auto 0;
+
+  padding: 6px;
+
+  border-radius: 50%;
+
+  background: white;
+
+  position: relative;
+
+  z-index: 10;
+
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.18);
+}
+
+.profile-picture img {
+  width: 100%;
+  height: 100%;
+
+  object-fit: cover;
+
+  border-radius: 50%;
+
+  display: block;
+}
+
+
+/* =========================
+   NAME
+========================= */
+
+h1 {
+  margin: 25px 15px 8px;
+
+  font-size: 40px;
+
+  font-weight: 700;
+
+  line-height: 1.15;
+
+  position: relative;
+
+  z-index: 5;
+}
+
+
+/* =========================
+   DESCRIPTION
+========================= */
+
+#description {
+  margin: 0 25px 30px;
+
+  color: #687685;
+
+  font-family: Arial, sans-serif;
+
+  font-size: 17px;
+
+  line-height: 1.5;
+
+  position: relative;
+
+  z-index: 5;
+}
+
+
+/* =========================
+   SOCIAL LINKS
+========================= */
+
+.social-links {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 14px;
+
+  padding: 0 25px;
+}
+
+
+.social-link {
+  display: flex;
+
+  align-items: center;
+
+  min-height: 72px;
+
+  padding: 10px 18px;
+
+  border-radius: 40px;
+
+  border: 1px solid rgba(255, 255, 255, 0.95);
+
+  background: rgba(255, 255, 255, 0.82);
+
+  color: #111;
+
+  text-decoration: none;
+
+  font-family: Arial, sans-serif;
+
+  box-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.06);
+
+  transition: 0.25s;
+}
+
+
+.social-link:hover {
+  transform: translateY(-2px);
+
+  background: white;
+
+  box-shadow:
+    0 10px 25px rgba(0, 0, 0, 0.08);
+}
+
+
+/* =========================
+   SOCIAL ICON
+========================= */
+
+.social-icon {
+  width: 50px;
+  height: 50px;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  border-radius: 14px;
+
+  background: #f5f5f5;
+}
+
+.social-icon img {
+  width: 34px;
+  height: 34px;
+
+  object-fit: contain;
+
+  display: block;
+}
+
+
+/* Instagram */
+
+.social-link:nth-child(1) .social-icon {
+  background: linear-gradient(
+    135deg,
+    #833ab4,
+    #fd1d1d,
+    #fcb045
+  );
+}
+
+.social-link:nth-child(1) .social-icon img {
+  filter: brightness(0) invert(1);
+}
+
+
+/* Facebook */
+
+.social-link:nth-child(2) .social-icon {
+  background: #1877f2;
+}
+
+.social-link:nth-child(2) .social-icon img {
+  filter: brightness(0) invert(1);
+}
+
+
+/* TikTok */
+
+.social-link:nth-child(3) .social-icon {
+  background: #000;
+}
+
+.social-link:nth-child(3) .social-icon img {
+  filter: invert(1);
+}
+
+
+/* =========================
+   SOCIAL NAME
+========================= */
+
+.social-name {
+  flex: 1;
+
+  text-align: left;
+
+  font-size: 19px;
+
+  margin-left: 15px;
+}
+
+
+/* =========================
+   ARROW
+========================= */
+
+.social-arrow {
+  font-family: Arial, sans-serif;
+
+  font-size: 32px;
+
+  line-height: 1;
+
+  color: #687685;
+
+  padding-right: 4px;
+}
+
+
+/* =========================
+   CONTACT BUTTONS
+========================= */
+
+.contact-buttons {
+  display: grid;
+
+  grid-template-columns: 1fr 1fr;
+
+  gap: 14px;
+
+  padding: 28px 25px 14px;
+}
+
+
+/* جميع أزرار الاتصال */
+
+.contact-button {
+  min-height: 70px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: 12px;
+
+  border-radius: 40px;
+
+  background: rgba(255, 255, 255, 0.82);
+
+  color: #263b50;
+
+  text-decoration: none;
+
+  font-family: Arial, sans-serif;
+
+  font-size: 17px;
+
+  box-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.06);
+
+  transition: 0.25s;
+}
+
+
+.contact-button:hover {
+  transform: translateY(-2px);
+
+  background: white;
+}
+
+
+/* أيقونة الاتصال */
+
+.contact-icon {
+  width: 45px;
+  height: 45px;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 50%;
+
+  flex-shrink: 0;
+}
+
+
+/* WhatsApp */
+
+.whatsapp-icon {
+  background: #25D366;
+}
+
+.whatsapp-icon img {
+  width: 27px;
+  height: 27px;
+}
+
+
+/* Phone */
+
+.phone-icon {
+  background: #8796a5;
+
+  color: white;
+
+  font-size: 25px;
+}
+
+
+/* Google Maps */
+
+.maps-icon {
+  background: white;
+
+  border: 1px solid #eeeeee;
+}
+
+.maps-icon img {
+  width: 31px;
+  height: 31px;
+}
+
+
+/* Google Maps يكون كامل العرض */
+
+.maps-button {
+  grid-column: 1 / -1;
+
+  justify-content: flex-start;
+
+  padding-left: 25px;
+
+  position: relative;
+}
+
+.maps-button .arrow {
+  margin-left: auto;
+
+  font-size: 32px;
+
+  color: #687685;
+}
+
+
+/* =========================
+   FOOTER
+========================= */
+
+.footer {
+  padding: 35px 20px 30px;
+
+  color: #7d8a97;
+
+  font-family: Arial, sans-serif;
+
+  font-size: 14px;
+}
+
+.heart {
+  margin-left: 5px;
+
+  font-size: 17px;
+}
+
+
+/* =========================
+   MOBILE
+========================= */
+
+@media (max-width: 500px) {
+
+  .cover {
+    height: 360px;
+  }
+
+  .cover::after {
+    height: 220px;
+  }
+
+  .profile-picture {
+    width: 140px;
+    height: 140px;
+
+    margin-top: -70px;
+  }
+
+  h1 {
+    font-size: 34px;
+
+    margin-top: 24px;
+  }
+
+  #description {
+    font-size: 16px;
+
+    margin-bottom: 28px;
+  }
+
+  .social-links {
+    padding: 0 16px;
+  }
+
+  .social-link {
+    min-height: 68px;
+
+    padding: 9px 16px;
+  }
+
+  .social-icon {
+    width: 47px;
+    height: 47px;
+  }
+
+  .social-icon img {
+    width: 31px;
+    height: 31px;
+  }
+
+  .social-name {
+    font-size: 18px;
+  }
+
+  .contact-buttons {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .contact-button {
+    min-height: 65px;
+
+    font-size: 15px;
+  }
+
+  .contact-icon {
+    width: 42px;
+    height: 42px;
+  }
+
+
+.website-icon {
+  font-size: 28px;
+  line-height: 1;
+}
