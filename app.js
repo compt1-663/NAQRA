@@ -31,7 +31,7 @@ const profileId = params.get("id") || "syly";
 async function loadProfile() {
   try {
     const response = await fetch(
-      `Profiles/${profileId}.json`
+      `Profiles/${encodeURIComponent(profileId)}.json`
     );
 
     if (!response.ok) {
@@ -39,7 +39,6 @@ async function loadProfile() {
     }
 
     const profile = await response.json();
-
     displayProfile(profile);
 
   } catch (error) {
@@ -57,12 +56,8 @@ function displayProfile(profile) {
   document.getElementById("description").textContent =
     profile.description || "";
 
-  const profileImage =
-    document.getElementById("profileImage");
-
-  const coverImage =
-    document.getElementById("coverImage");
-
+  const profileImage = document.getElementById("profileImage");
+  const coverImage = document.getElementById("coverImage");
 
   // صورة البروفايل
   if (profile.profileImage) {
@@ -74,7 +69,6 @@ function displayProfile(profile) {
     profileImage.removeAttribute("src");
   }
 
-
   // صورة الغلاف
   if (profile.coverImage) {
     coverImage.src = new URL(
@@ -85,8 +79,6 @@ function displayProfile(profile) {
     coverImage.removeAttribute("src");
   }
 
-
-  // عنوان الصفحة
   document.title = profile.name || "NAQRA";
 
   createSocialLinks(profile);
@@ -96,9 +88,7 @@ function displayProfile(profile) {
 
 // إنشاء روابط السوشيال
 function createSocialLinks(profile) {
-  const container =
-    document.getElementById("socialLinks");
-
+  const container = document.getElementById("socialLinks");
   container.innerHTML = "";
 
   const socialNetworks = [
@@ -133,34 +123,18 @@ function createSocialLinks(profile) {
     if (!network.url) return;
 
     const link = document.createElement("a");
-
     link.className = "social-link";
     link.href = network.url;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
 
     const iconHTML = network.imageIcon
-      ? `
-        <img
-          src="${network.imageIcon}"
-          alt="${network.name}"
-        >
-      `
-      : `
-        <span class="website-icon">
-          ${network.icon}
-        </span>
-      `;
+      ? `<img src="${network.imageIcon}" alt="${network.name}">`
+      : `<span class="website-icon">${network.icon}</span>`;
 
     link.innerHTML = `
-      <span class="social-icon">
-        ${iconHTML}
-      </span>
-
-      <span class="social-name">
-        ${network.name}
-      </span>
-
+      <span class="social-icon">${iconHTML}</span>
+      <span class="social-name">${network.name}</span>
       <span class="social-arrow">›</span>
     `;
 
@@ -169,88 +143,48 @@ function createSocialLinks(profile) {
 }
 
 
-// إنشاء أزرار الاتصال
+// إظهار أو إخفاء زر حسب وجود الرقم
+function setupContactButton(buttonId, value, type) {
+  const button = document.getElementById(buttonId);
+  if (!button) return;
+
+  const number = String(value || "").trim();
+
+  if (!number) {
+    button.style.display = "none";
+    button.removeAttribute("href");
+    return;
+  }
+
+  button.style.display = "";
+
+  if (type === "phone") {
+    button.href = `tel:${number}`;
+  }
+
+  if (type === "whatsapp") {
+    const whatsappNumber = number.replace(/\D/g, "");
+
+    if (!whatsappNumber) {
+      button.style.display = "none";
+      button.removeAttribute("href");
+      return;
+    }
+
+    button.href = `https://wa.me/${whatsappNumber}`;
+  }
+}
+
+
+// إعداد أزرار الاتصال الأربعة وGoogle Maps
 function createContactButtons(profile) {
-  const contactContainer =
-    document.getElementById("contactButtons");
+  setupContactButton("phoneButton", profile.phone, "phone");
+  setupContactButton("phoneButton2", profile.phone2, "phone");
 
-  // إذا كان عندك contactButtons في HTML
-  // ننشئو الأزرار الأربعة داخله تلقائيًا.
-  if (contactContainer) {
-    contactContainer.innerHTML = "";
+  setupContactButton("whatsappButton", profile.whatsapp, "whatsapp");
+  setupContactButton("whatsappButton2", profile.whatsapp2, "whatsapp");
 
-    const contacts = [
-      {
-        label: "Téléphone 1",
-        value: profile.phone,
-        type: "phone"
-      },
-      {
-        label: "Téléphone 2",
-        value: profile.phone2,
-        type: "phone"
-      },
-      {
-        label: "WhatsApp 1",
-        value: profile.whatsapp,
-        type: "whatsapp"
-      },
-      {
-        label: "WhatsApp 2",
-        value: profile.whatsapp2,
-        type: "whatsapp"
-      }
-    ];
-
-    contacts.forEach(contact => {
-      if (!contact.value) return;
-
-      const button = document.createElement("a");
-
-      button.className = "contact-button";
-      button.textContent = contact.label;
-
-      if (contact.type === "phone") {
-        button.href = `tel:${contact.value}`;
-      } else {
-        const number = contact.value.replace(/\D/g, "");
-        button.href = `https://wa.me/${number}`;
-        button.target = "_blank";
-        button.rel = "noopener noreferrer";
-      }
-
-      contactContainer.appendChild(button);
-    });
-  }
-
-  // دعم الأزرار القديمة الموجودة في HTML
-  const phoneButton =
-    document.getElementById("phoneButton");
-
-  const whatsappButton =
-    document.getElementById("whatsappButton");
-
-  const mapsButton =
-    document.getElementById("mapsButton");
-
-  if (phoneButton) {
-    if (profile.phone) {
-      phoneButton.href = `tel:${profile.phone}`;
-      phoneButton.style.display = "";
-    } else {
-      phoneButton.style.display = "none";
-    }
-  }
-
-  if (whatsappButton) {
-    if (profile.whatsapp) {
-      const number = profile.whatsapp.replace(/\D/g, "");
-      whatsappButton.href = `https://wa.me/${number}`;
-      whatsappButton.style.display = "";
-    } else {
-      whatsappButton.style.display = "none";
-    }
-  }
+  const mapsButton = document.getElementById("mapsButton");
 
   if (mapsButton) {
     if (profile.googleMaps) {
@@ -260,6 +194,7 @@ function createContactButtons(profile) {
       mapsButton.rel = "noopener noreferrer";
     } else {
       mapsButton.style.display = "none";
+      mapsButton.removeAttribute("href");
     }
   }
 }
