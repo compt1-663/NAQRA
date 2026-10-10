@@ -7,6 +7,7 @@
 <title>NAQRA — Administration</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/utif@3.1.0/UTIF.min.js"></script>
 
@@ -416,6 +417,7 @@ function renderClients() {
       <tr>
         <td><div class="client-name">${avatar}<strong>${safeText(client.name || "Sans nom")}</strong></div></td>
         <td><div class="row-actions">
+          <button class="btn small" data-action="qr" data-id="${safeText(client.id)}">↓ QR PNG</button>
           <button class="btn small" data-action="link" data-id="${safeText(client.id)}">Lien</button>
           <button class="btn small" data-action="edit" data-id="${safeText(client.id)}">Modifier</button>
           <button class="btn small danger" data-action="delete" data-id="${safeText(client.id)}">Supprimer</button>
@@ -433,6 +435,16 @@ $("clientsBody").addEventListener("click", async event => {
   const client = clients.find(c => String(c.id) === button.dataset.id);
   if (!client) return;
 
+  if (button.dataset.action === "qr") {
+    button.disabled = true;
+    try {
+      await downloadClientQr(client);
+    } finally {
+      button.disabled = false;
+    }
+    return;
+  }
+
   if (button.dataset.action === "link") showClientLink(client);
   if (button.dataset.action === "edit") openEditForm(client);
   if (button.dataset.action === "delete") await deleteClient(client);
@@ -448,6 +460,47 @@ function showClientLink(client) {
   $("clientLink").textContent = link;
   $("openLinkBtn").href = link;
   showModal("linkModal");
+}
+
+/* Génère un QR seul, noir sur blanc, sans logo ni texte ajouté. */
+async function downloadClientQr(client) {
+  if (!window.QRCode) {
+    toast("La bibliothèque QR n'a pas chargé. Vérifiez votre connexion Internet.");
+    return;
+  }
+
+  if (!client.slug) {
+    toast("Ce client n'a pas d'identifiant de page.");
+    return;
+  }
+
+  const link = pageUrl(client.slug);
+
+  try {
+    const dataUrl = await QRCode.toDataURL(link, {
+      width: 1200,
+      margin: 4,
+      errorCorrectionLevel: "L",
+      type: "image/png",
+      color: {
+        dark: "#000000",
+        light: "#FFFFFF"
+      }
+    });
+
+    const a = document.createElement("a");
+    a.href = dataUrl;
+    a.download = `NAQRA-QR-${normalizeSlug(client.slug) || "client"}.png`;
+
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    toast("QR Code téléchargé en PNG.");
+  } catch (error) {
+    console.error("QR Code error:", error);
+    toast("Impossible de générer le QR Code. Vérifiez votre connexion.");
+  }
 }
 
 $("copyLinkBtn").addEventListener("click", async () => {
@@ -650,7 +703,6 @@ function decodeBlob(blob) {
   });
 }
 
-/* Lecture directe, puis tentative de conversion pour HEIC/HEIF et TIFF */
 async function loadImage(file) {
   if (!file || !file.size) {
     throw new Error("Le fichier est vide ou illisible.");
@@ -660,7 +712,7 @@ async function loadImage(file) {
     throw new Error("Le fichier dépasse 50 Mo. Réduisez sa taille puis réessayez.");
   }
 
-  let convertedFile = file;
+  let convertedFile;
 
   try {
     convertedFile = await convertSourceFile(file);
@@ -703,7 +755,6 @@ async function compressImage(file, maxBytes = 100 * 1024) {
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("Impossible de préparer l'image.");
 
-    /* JPEG ne gère pas la transparence, donc fond blanc */
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, width, height);
     ctx.drawImage(img, 0, 0, width, height);
@@ -718,7 +769,6 @@ async function compressImage(file, maxBytes = 100 * 1024) {
           continue;
         }
 
-        /* Ignore les types de sortie inattendus du navigateur */
         if (!blob || !blob.size) continue;
         if (blob.type !== "image/webp" && blob.type !== "image/jpeg") continue;
 
@@ -771,6 +821,7 @@ async function handleImageChange(inputId, previewId, hintId, kind) {
   }
 
   hint.textContent = "Lecture, conversion et compression en cours...";
+
   compressionTasks[kind] = compressImage(file)
     .then(compressed => {
       compressedImages[kind] = compressed;
@@ -870,8 +921,9 @@ $("clientForm").addEventListener("submit", async event => {
       }
     }
 
-    /* Garder le slug existant pour ne pas casser le lien public */
+    /* Préserver le slug existant pour garder le lien public */
     let slug;
+
     if (existingId && editingClient) {
       slug = editingClient.slug || generateUniqueSlug(name);
     } else {
@@ -889,6 +941,7 @@ $("clientForm").addEventListener("submit", async event => {
     if (hasProfile && !profileFile) {
       throw new Error("La photo de profil n'a pas pu être convertie. Essayez JPG ou PNG.");
     }
+
     if (hasCover && !coverFile) {
       throw new Error("La photo de couverture n'a pas pu être convertie. Essayez JPG ou PNG.");
     }
@@ -972,6 +1025,7 @@ async function deleteClient(client) {
   const confirmed = confirm(
     `Supprimer définitivement la page « ${client.name} » ? Cette action ne peut pas être annulée.`
   );
+
   if (!confirmed) return;
 
   const { error } = await db
