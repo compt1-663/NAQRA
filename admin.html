@@ -7,7 +7,6 @@
 <title>NAQRA — Administration</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/utif@3.1.0/UTIF.min.js"></script>
 
@@ -69,6 +68,7 @@ td { font-size:13px; }
 .login-box h2 { margin-bottom:8px; }
 .muted { color:var(--muted); font-size:13px; line-height:1.6; }
 .linkbox { background:#f5f6f8; border:1px solid var(--border); padding:12px; border-radius:10px; overflow-wrap:anywhere; font-size:13px; margin:10px 0; }
+
 @media(max-width:650px) {
   .container { padding:13px; }
   .card { padding:15px; }
@@ -199,19 +199,35 @@ td { font-size:13px; }
   </div>
 </div>
 
+<!-- Fenêtre de confirmation de suppression intégrée au site -->
+<div class="modal" id="deleteModal">
+  <div class="modal-card" style="max-width:420px">
+    <div class="modal-head">
+      <h2>Supprimer le client ?</h2>
+      <button class="close" id="cancelDeleteX" type="button">✕</button>
+    </div>
+    <p class="muted" id="deleteMessage">Cette action est irréversible.</p>
+    <div class="form-actions">
+      <button class="btn" id="cancelDelete" type="button">Annuler</button>
+      <button class="btn danger" id="confirmDelete" type="button">Supprimer</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast hidden" id="toast" role="status"></div>
 
 <script>
 "use strict";
 
 const SUPABASE_URL = "https://gzdaauwvteuouxuqjmbz.supabase.co";
-const SUPABASE_KEY = "sb_publishable_eicaSCmYo18u524iPoChHw_1d5t9Sqy";
+const SUPABASE_KEY = "sb_publishable_eicaSCmYO18u524iPoChHw_1d5t9Sqy";
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentUser = null;
 let currentVendor = null;
 let clients = [];
 let editingClient = null;
+let pendingDeleteClient = null;
 let toastTimer = null;
 
 const compressionTasks = {
@@ -229,8 +245,13 @@ function toast(message) {
   toastTimer = setTimeout(() => el.classList.add("hidden"), 5000);
 }
 
-function showModal(id) { $(id).classList.add("show"); }
-function closeModal(id) { $(id).classList.remove("show"); }
+function showModal(id) {
+  $(id).classList.add("show");
+}
+
+function closeModal(id) {
+  $(id).classList.remove("show");
+}
 
 document.querySelectorAll("[data-close]").forEach(button => {
   button.addEventListener("click", () => closeModal(button.dataset.close));
@@ -278,10 +299,12 @@ function generateUniqueSlug(name) {
 
   let slug = base;
   let counter = 2;
+
   while (existingSlugs.has(slug.toLowerCase())) {
     const suffix = "-" + counter++;
     slug = base.slice(0, 80 - suffix.length) + suffix;
   }
+
   return slug;
 }
 
@@ -337,6 +360,7 @@ async function loadVendor() {
 
 $("loginForm").addEventListener("submit", async event => {
   event.preventDefault();
+
   const button = $("loginForm").querySelector("button[type=submit]");
   button.disabled = true;
   setLoginMessage("Connexion en cours...");
@@ -346,7 +370,9 @@ $("loginForm").addEventListener("submit", async event => {
       email: $("email").value.trim(),
       password: $("password").value
     });
+
     if (error) throw error;
+
     currentUser = data.user;
     await loadVendor();
     setLoginMessage("");
@@ -360,10 +386,12 @@ $("loginForm").addEventListener("submit", async event => {
 
 $("logoutBtn").addEventListener("click", async () => {
   const { error } = await db.auth.signOut();
+
   if (error) {
     toast("Erreur lors de la déconnexion.");
     return;
   }
+
   currentUser = null;
   currentVendor = null;
   clients = [];
@@ -396,6 +424,7 @@ async function loadClients() {
 
 function renderClients() {
   const search = $("searchInput").value.trim().toLowerCase();
+
   const list = clients.filter(client =>
     String(client.name || "").toLowerCase().includes(search) ||
     String(client.slug || "").toLowerCase().includes(search)
@@ -409,19 +438,27 @@ function renderClients() {
 
   $("clientsBody").innerHTML = list.map(client => {
     const image = client.profile_image || "";
+
     const avatar = image
       ? `<img class="avatar" src="${safeText(image)}" alt="" loading="lazy" onerror="this.style.display='none'">`
       : `<div class="avatar">${safeText((client.name || "C").charAt(0).toUpperCase())}</div>`;
 
     return `
       <tr>
-        <td><div class="client-name">${avatar}<strong>${safeText(client.name || "Sans nom")}</strong></div></td>
-        <td><div class="row-actions">
-          <button class="btn small" data-action="qr" data-id="${safeText(client.id)}">↓ QR PNG</button>
-          <button class="btn small" data-action="link" data-id="${safeText(client.id)}">Lien</button>
-          <button class="btn small" data-action="edit" data-id="${safeText(client.id)}">Modifier</button>
-          <button class="btn small danger" data-action="delete" data-id="${safeText(client.id)}">Supprimer</button>
-        </div></td>
+        <td>
+          <div class="client-name">
+            ${avatar}
+            <strong>${safeText(client.name || "Sans nom")}</strong>
+          </div>
+        </td>
+        <td>
+          <div class="row-actions">
+            <button class="btn small" data-action="qr" data-id="${safeText(client.id)}">↓ QR PNG</button>
+            <button class="btn small" data-action="link" data-id="${safeText(client.id)}">Lien</button>
+            <button class="btn small" data-action="edit" data-id="${safeText(client.id)}">Modifier</button>
+            <button class="btn small danger" data-action="delete" data-id="${safeText(client.id)}">Supprimer</button>
+          </div>
+        </td>
       </tr>`;
   }).join("");
 }
@@ -447,7 +484,7 @@ $("clientsBody").addEventListener("click", async event => {
 
   if (button.dataset.action === "link") showClientLink(client);
   if (button.dataset.action === "edit") openEditForm(client);
-  if (button.dataset.action === "delete") await deleteClient(client);
+  if (button.dataset.action === "delete") askDeleteClient(client);
 });
 
 function showClientLink(client) {
@@ -462,13 +499,11 @@ function showClientLink(client) {
   showModal("linkModal");
 }
 
-/* Génère un QR seul, noir sur blanc, sans logo ni texte ajouté. */
+/*
+ * QR code en PNG via un service externe.
+ * Le QR contient uniquement le lien existant du client.
+ */
 async function downloadClientQr(client) {
-  if (!window.QRCode) {
-    toast("La bibliothèque QR n'a pas chargé. Vérifiez votre connexion Internet.");
-    return;
-  }
-
   if (!client.slug) {
     toast("Ce client n'a pas d'identifiant de page.");
     return;
@@ -477,34 +512,52 @@ async function downloadClientQr(client) {
   const link = pageUrl(client.slug);
 
   try {
-    const dataUrl = await QRCode.toDataURL(link, {
-      width: 1200,
-      margin: 4,
-      errorCorrectionLevel: "L",
-      type: "image/png",
-      color: {
-        dark: "#000000",
-        light: "#FFFFFF"
-      }
-    });
+    const qrUrl = new URL(
+      "https://api.qrserver.com/v1/create-qr-code/"
+    );
 
+    qrUrl.searchParams.set("data", link);
+    qrUrl.searchParams.set("size", "1000x1000");
+    qrUrl.searchParams.set("format", "png");
+    qrUrl.searchParams.set("color", "0-0-0");
+    qrUrl.searchParams.set("bgcolor", "ffffff");
+    qrUrl.searchParams.set("margin", "4");
+    qrUrl.searchParams.set("ecc", "L");
+
+    const response = await fetch(qrUrl.toString());
+
+    if (!response.ok) {
+      throw new Error("QR service unavailable");
+    }
+
+    const blob = await response.blob();
+
+    if (!blob.type.includes("image")) {
+      throw new Error("Le service n'a pas retourné une image.");
+    }
+
+    const objectUrl = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = dataUrl;
-    a.download = `NAQRA-QR-${normalizeSlug(client.slug) || "client"}.png`;
+
+    a.href = objectUrl;
+    a.download =
+      `NAQRA-QR-${normalizeSlug(client.slug) || "client"}.png`;
 
     document.body.appendChild(a);
     a.click();
     a.remove();
 
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
     toast("QR Code téléchargé en PNG.");
   } catch (error) {
-    console.error("QR Code error:", error);
-    toast("Impossible de générer le QR Code. Vérifiez votre connexion.");
+    console.error("QR download error:", error);
+    toast("Échec du QR. Vérifiez la connexion Internet et réessayez.");
   }
 }
 
 $("copyLinkBtn").addEventListener("click", async () => {
   const link = $("clientLink").textContent;
+
   try {
     await navigator.clipboard.writeText(link);
     toast("Lien copié.");
@@ -513,12 +566,64 @@ $("copyLinkBtn").addEventListener("click", async () => {
   }
 });
 
+/* Fenêtre de confirmation de suppression personnalisée */
+function askDeleteClient(client) {
+  pendingDeleteClient = client;
+
+  $("deleteMessage").textContent =
+    `Voulez-vous vraiment supprimer « ${client.name} » ? Cette action est irréversible.`;
+
+  showModal("deleteModal");
+}
+
+function cancelDeleteClient() {
+  pendingDeleteClient = null;
+  closeModal("deleteModal");
+}
+
+$("cancelDelete").addEventListener("click", cancelDeleteClient);
+$("cancelDeleteX").addEventListener("click", cancelDeleteClient);
+
+$("confirmDelete").addEventListener("click", async () => {
+  const client = pendingDeleteClient;
+
+  if (!client || !currentVendor) return;
+
+  const button = $("confirmDelete");
+  button.disabled = true;
+  button.textContent = "Suppression...";
+
+  try {
+    const { error } = await db
+      .from("clients")
+      .delete()
+      .eq("id", client.id)
+      .eq("vendor_id", currentVendor.id);
+
+    if (error) throw error;
+
+    closeModal("deleteModal");
+    pendingDeleteClient = null;
+
+    toast("Client supprimé.");
+    await loadClients();
+  } catch (error) {
+    console.error(error);
+    toast("Suppression impossible : " + error.message);
+  } finally {
+    button.disabled = false;
+    button.textContent = "Supprimer";
+  }
+});
+
 function clearPreview(id) {
   const preview = $(id);
+
   if (preview.dataset.objectUrl) {
     URL.revokeObjectURL(preview.dataset.objectUrl);
     delete preview.dataset.objectUrl;
   }
+
   preview.removeAttribute("src");
   preview.classList.add("hidden");
 }
@@ -577,6 +682,7 @@ function openEditForm(client) {
     $("profilePreview").src = client.profile_image;
     $("profilePreview").classList.remove("hidden");
   }
+
   if (client.cover_image) {
     $("coverPreview").src = client.cover_image;
     $("coverPreview").classList.remove("hidden");
@@ -776,6 +882,7 @@ async function compressImage(file, maxBytes = 100 * 1024) {
 
         if (blob.size <= maxBytes) {
           const ext = blob.type === "image/webp" ? "webp" : "jpg";
+
           return new File([blob], `image-${Date.now()}.${ext}`, {
             type: blob.type,
             lastModified: Date.now()
@@ -795,6 +902,7 @@ async function compressImage(file, maxBytes = 100 * 1024) {
   }
 
   const ext = bestBlob.type === "image/webp" ? "webp" : "jpg";
+
   return new File([bestBlob], `image-${Date.now()}.${ext}`, {
     type: bestBlob.type,
     lastModified: Date.now()
@@ -869,6 +977,7 @@ async function uploadImage(file, kind, clientId) {
   };
 
   const extension = extensions[file.type];
+
   if (!extension) {
     throw new Error("Format de sortie non pris en charge : " + file.type);
   }
@@ -921,7 +1030,7 @@ $("clientForm").addEventListener("submit", async event => {
       }
     }
 
-    /* Préserver le slug existant pour garder le lien public */
+    /* Garder le slug existant pour ne pas changer le lien client. */
     let slug;
 
     if (existingId && editingClient) {
@@ -930,7 +1039,9 @@ $("clientForm").addEventListener("submit", async event => {
       slug = generateUniqueSlug(name);
     }
 
-    if (!slug) throw new Error("Impossible de générer l'identifiant de la page.");
+    if (!slug) {
+      throw new Error("Impossible de générer l'identifiant de la page.");
+    }
 
     const hasProfile = $("profileFile").files.length > 0;
     const hasCover = $("coverFile").files.length > 0;
@@ -1020,29 +1131,6 @@ $("clientForm").addEventListener("submit", async event => {
     button.textContent = "Enregistrer";
   }
 });
-
-async function deleteClient(client) {
-  const confirmed = confirm(
-    `Supprimer définitivement la page « ${client.name} » ? Cette action ne peut pas être annulée.`
-  );
-
-  if (!confirmed) return;
-
-  const { error } = await db
-    .from("clients")
-    .delete()
-    .eq("id", client.id)
-    .eq("vendor_id", currentVendor.id);
-
-  if (error) {
-    console.error(error);
-    toast("Suppression impossible : " + error.message);
-    return;
-  }
-
-  toast("Page client supprimée.");
-  await loadClients();
-}
 
 db.auth.onAuthStateChange(event => {
   if (event === "SIGNED_OUT") {
