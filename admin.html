@@ -163,15 +163,15 @@ td { font-size:13px; }
 
         <div class="field">
           <label for="profileFile">Photo de profil</label>
-          <input id="profileFile" type="file" accept="image/*,.heic,.heif,.avif,.bmp,.tif,.tiff">
+          <input id="profileFile" type="file" accept="image/*,.heic,.heif,.avif,.bmp,.tif,.tiff,.gif,.svg,.ico,.jxl,.dng,.raw,.cr2,.cr3,.nef,.arw,.orf,.rw2">
           <img id="profilePreview" class="preview hidden" alt="Aperçu du profil">
-          <div class="hint" id="profileHint">Formats image courants, conversion et compression automatiques.</div>
+          <div class="hint" id="profileHint">Sélectionnez une image. Conversion automatique si le navigateur le permet.</div>
         </div>
         <div class="field">
           <label for="coverFile">Photo de couverture</label>
-          <input id="coverFile" type="file" accept="image/*,.heic,.heif,.avif,.bmp,.tif,.tiff">
+          <input id="coverFile" type="file" accept="image/*,.heic,.heif,.avif,.bmp,.tif,.tiff,.gif,.svg,.ico,.jxl,.dng,.raw,.cr2,.cr3,.nef,.arw,.orf,.rw2">
           <img id="coverPreview" class="preview hidden" alt="Aperçu de la couverture">
-          <div class="hint" id="coverHint">Formats image courants, conversion et compression automatiques.</div>
+          <div class="hint" id="coverHint">Sélectionnez une image. Conversion automatique si le navigateur le permet.</div>
         </div>
       </div>
 
@@ -478,9 +478,9 @@ function clearForm() {
   $("clientId").value = "";
 
   $("profileHint").textContent =
-    "Formats image courants, conversion et compression automatiques.";
+    "Sélectionnez une image. Conversion automatique si le navigateur le permet.";
   $("coverHint").textContent =
-    "Formats image courants, conversion et compression automatiques.";
+    "Sélectionnez une image. Conversion automatique si le navigateur le permet.";
 
   compressedImages.profile = null;
   compressedImages.cover = null;
@@ -532,21 +532,55 @@ function openEditForm(client) {
   showModal("clientModal");
 }
 
-/* تحويل TIFF إلى PNG باستعمال UTIF */
+function extensionOf(file) {
+  const name = String(file.name || "").toLowerCase();
+  const dot = name.lastIndexOf(".");
+  return dot >= 0 ? name.slice(dot + 1) : "";
+}
+
+function isHeicFile(file) {
+  const type = String(file.type || "").toLowerCase();
+  const ext = extensionOf(file);
+  return type.includes("heic") || type.includes("heif") ||
+    ext === "heic" || ext === "heif";
+}
+
+function isTiffFile(file) {
+  const type = String(file.type || "").toLowerCase();
+  const ext = extensionOf(file);
+  return type.includes("tiff") || ext === "tif" || ext === "tiff";
+}
+
+function canvasToBlob(canvas, type, quality) {
+  return new Promise((resolve, reject) => {
+    try {
+      canvas.toBlob(blob => {
+        if (!blob) {
+          reject(new Error("Le navigateur n'a pas pu convertir cette image."));
+          return;
+        }
+        resolve(blob);
+      }, type, quality);
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
 async function convertTiffToPng(file) {
   if (!window.UTIF) {
-    throw new Error("La bibliothèque TIFF n'a pas pu être chargée. Essayez PNG ou JPG.");
+    throw new Error("Convertisseur TIFF indisponible. Vérifiez votre connexion Internet.");
   }
 
   const buffer = await file.arrayBuffer();
-  const ifds = UTIF.decode(buffer);
+  const ifds = window.UTIF.decode(buffer);
 
   if (!ifds || !ifds.length) {
-    throw new Error("Impossible de décoder ce fichier TIFF.");
+    throw new Error("Le fichier TIFF semble invalide ou non pris en charge.");
   }
 
-  UTIF.decodeImage(buffer, ifds[0]);
-  const rgba = UTIF.toRGBA8(ifds[0]);
+  window.UTIF.decodeImage(buffer, ifds[0]);
+  const rgba = window.UTIF.toRGBA8(ifds[0]);
 
   const canvas = document.createElement("canvas");
   canvas.width = ifds[0].width;
@@ -557,33 +591,16 @@ async function convertTiffToPng(file) {
 
   ctx.putImageData(
     new ImageData(new Uint8ClampedArray(rgba), canvas.width, canvas.height),
-    0,
-    0
+    0, 0
   );
 
-  const blob = await canvasToBlob(canvas, "image/png");
-  if (!blob) throw new Error("Impossible de convertir le TIFF en PNG.");
-  return blob;
+  return await canvasToBlob(canvas, "image/png");
 }
 
-/* قراءة الصور وتحويل HEIC/HEIF وTIFF قبل الضغط */
-async function loadImage(file) {
-  let sourceBlob = file;
-  const name = (file.name || "").toLowerCase();
-  const type = (file.type || "").toLowerCase();
-
-  const isHeic =
-    type.includes("heic") ||
-    type.includes("heif") ||
-    /\.(heic|heif)$/.test(name);
-
-  const isTiff =
-    type.includes("tiff") ||
-    /\.(tif|tiff)$/.test(name);
-
-  if (isHeic) {
+async function convertSourceFile(file) {
+  if (isHeicFile(file)) {
     if (typeof window.heic2any !== "function") {
-      throw new Error("Impossible de charger le convertisseur HEIC. Vérifiez Internet puis réessayez.");
+      throw new Error("Convertisseur HEIC indisponible. Vérifiez votre connexion Internet.");
     }
 
     const result = await window.heic2any({
@@ -591,97 +608,118 @@ async function loadImage(file) {
       toType: "image/png"
     });
 
-    sourceBlob = Array.isArray(result) ? result[0] : result;
-  } else if (isTiff) {
-    sourceBlob = await convertTiffToPng(file);
+    return Array.isArray(result) ? result[0] : result;
   }
 
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const url = URL.createObjectURL(sourceBlob);
-    let finished = false;
+  if (isTiffFile(file)) {
+    return await convertTiffToPng(file);
+  }
 
-    const finishError = () => {
-      if (finished) return;
-      finished = true;
-      URL.revokeObjectURL(url);
-      reject(new Error(
-        "Impossible de lire cette image. Essayez de la convertir en PNG, JPG ou WebP."
-      ));
-    };
+  return file;
+}
+
+function decodeBlob(blob) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    let settled = false;
+
+    const cleanup = () => URL.revokeObjectURL(url);
 
     img.onload = () => {
-      if (finished) return;
-      finished = true;
-      URL.revokeObjectURL(url);
+      if (settled) return;
+      settled = true;
+      cleanup();
 
-      if (!(img.naturalWidth > 0 && img.naturalHeight > 0)) {
-        reject(new Error("Les dimensions de l'image sont invalides."));
+      if (!img.naturalWidth || !img.naturalHeight) {
+        reject(new Error("L'image ne contient pas de dimensions valides."));
         return;
       }
+
       resolve(img);
     };
 
-    img.onerror = finishError;
+    img.onerror = () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(new Error("Le navigateur ne sait pas décoder cette image."));
+    };
 
-    try {
-      img.src = url;
-    } catch {
-      finishError();
-    }
+    img.src = url;
   });
 }
 
-function canvasToBlob(canvas, type, quality) {
-  return new Promise(resolve => {
-    try {
-      canvas.toBlob(blob => resolve(blob), type, quality);
-    } catch {
-      resolve(null);
-    }
-  });
-}
-
-/* ضغط الصورة إلى WebP أو JPEG */
-async function compressImage(file, maxBytes = 100 * 1024) {
+/* Lecture directe, puis tentative de conversion pour HEIC/HEIF et TIFF */
+async function loadImage(file) {
   if (!file || !file.size) {
-    throw new Error("Le fichier image est vide.");
+    throw new Error("Le fichier est vide ou illisible.");
   }
 
-  if (file.size > 25 * 1024 * 1024) {
-    throw new Error("L'image originale dépasse 25 Mo.");
+  if (file.size > 50 * 1024 * 1024) {
+    throw new Error("Le fichier dépasse 50 Mo. Réduisez sa taille puis réessayez.");
   }
 
+  let convertedFile = file;
+
+  try {
+    convertedFile = await convertSourceFile(file);
+  } catch (error) {
+    console.warn("Conversion spécialisée échouée :", error);
+    throw new Error(error.message || "Impossible de convertir cette image.");
+  }
+
+  try {
+    return await decodeBlob(convertedFile);
+  } catch (error) {
+    console.error("Décodage image échoué :", error);
+    throw new Error(
+      "Le navigateur ne peut pas lire cette image. Les fichiers RAW, certains SVG/JXL et les formats propriétaires nécessitent un convertisseur spécialisé."
+    );
+  }
+}
+
+async function compressImage(file, maxBytes = 100 * 1024) {
   const img = await loadImage(file);
+
   let width = img.naturalWidth;
   let height = img.naturalHeight;
 
-  const scale = Math.min(1, 1600 / Math.max(width, height));
+  const maxDimension = 1600;
+  const scale = Math.min(1, maxDimension / Math.max(width, height));
+
   width = Math.max(1, Math.round(width * scale));
   height = Math.max(1, Math.round(height * scale));
 
   let bestBlob = null;
-  const types = ["image/webp", "image/jpeg"];
-  const qualities = [0.84, 0.72, 0.60, 0.48, 0.36];
+  const outputTypes = ["image/webp", "image/jpeg"];
+  const qualities = [0.86, 0.76, 0.66, 0.56, 0.46, 0.36];
 
-  for (let pass = 0; pass < 9; pass++) {
+  for (let pass = 0; pass < 10; pass++) {
     const canvas = document.createElement("canvas");
     canvas.width = width;
     canvas.height = height;
 
     const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Canvas indisponible pour compresser l'image.");
+    if (!ctx) throw new Error("Impossible de préparer l'image.");
 
+    /* JPEG ne gère pas la transparence, donc fond blanc */
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, width, height);
     ctx.drawImage(img, 0, 0, width, height);
 
-    for (const type of types) {
+    for (const type of outputTypes) {
       for (const quality of qualities) {
-        const blob = await canvasToBlob(canvas, type, quality);
-        if (!blob || !blob.size) continue;
+        let blob;
 
-        /* بعض المتصفحات قد تتجاهل صيغة WebP */
+        try {
+          blob = await canvasToBlob(canvas, type, quality);
+        } catch {
+          continue;
+        }
+
+        /* Ignore les types de sortie inattendus du navigateur */
+        if (!blob || !blob.size) continue;
         if (blob.type !== "image/webp" && blob.type !== "image/jpeg") continue;
 
         if (!bestBlob || blob.size < bestBlob.size) bestBlob = blob;
@@ -696,14 +734,14 @@ async function compressImage(file, maxBytes = 100 * 1024) {
       }
     }
 
-    if (Math.max(width, height) <= 320) break;
+    if (Math.max(width, height) <= 240) break;
 
     width = Math.max(1, Math.round(width * 0.75));
     height = Math.max(1, Math.round(height * 0.75));
   }
 
   if (!bestBlob) {
-    throw new Error("Compression impossible. Essayez une autre image.");
+    throw new Error("La conversion a échoué. Essayez une autre image.");
   }
 
   const ext = bestBlob.type === "image/webp" ? "webp" : "jpg";
@@ -732,8 +770,7 @@ async function handleImageChange(inputId, previewId, hintId, kind) {
     return;
   }
 
-  hint.textContent = "Conversion et compression en cours...";
-
+  hint.textContent = "Lecture, conversion et compression en cours...";
   compressionTasks[kind] = compressImage(file)
     .then(compressed => {
       compressedImages[kind] = compressed;
@@ -745,14 +782,14 @@ async function handleImageChange(inputId, previewId, hintId, kind) {
 
       hint.textContent =
         "Image prête : " + formatBytes(compressed.size) +
-        " — " + compressed.type;
+        " (" + compressed.type + ")";
 
       return compressed;
     })
     .catch(error => {
       console.error("Erreur image :", error);
       compressedImages[kind] = null;
-      hint.textContent = error.message || "Erreur de lecture ou compression.";
+      hint.textContent = error.message || "Erreur de lecture ou de conversion.";
       toast(hint.textContent);
       return null;
     });
@@ -772,7 +809,6 @@ function formValue(id) {
   return $(id).value.trim();
 }
 
-/* الرفع يكون فقط بصيغة WebP أو JPEG بعد التحويل */
 async function uploadImage(file, kind, clientId) {
   if (!file) return null;
 
@@ -783,7 +819,7 @@ async function uploadImage(file, kind, clientId) {
 
   const extension = extensions[file.type];
   if (!extension) {
-    throw new Error("Format de sortie non pris en charge : " + (file.type || "inconnu"));
+    throw new Error("Format de sortie non pris en charge : " + file.type);
   }
 
   const path =
@@ -834,11 +870,10 @@ $("clientForm").addEventListener("submit", async event => {
       }
     }
 
-    /* لا نغير slug عند تعديل زبون موجود */
+    /* Garder le slug existant pour ne pas casser le lien public */
     let slug;
     if (existingId && editingClient) {
-      slug = editingClient.slug;
-      if (!slug) slug = generateUniqueSlug(name);
+      slug = editingClient.slug || generateUniqueSlug(name);
     } else {
       slug = generateUniqueSlug(name);
     }
@@ -852,10 +887,10 @@ $("clientForm").addEventListener("submit", async event => {
     const coverFile = hasCover ? await compressionTasks.cover : null;
 
     if (hasProfile && !profileFile) {
-      throw new Error("La photo de profil n'a pas pu être lue. Essayez PNG, JPG ou WebP.");
+      throw new Error("La photo de profil n'a pas pu être convertie. Essayez JPG ou PNG.");
     }
     if (hasCover && !coverFile) {
-      throw new Error("La photo de couverture n'a pas pu être lue. Essayez PNG, JPG ou WebP.");
+      throw new Error("La photo de couverture n'a pas pu être convertie. Essayez JPG ou PNG.");
     }
 
     const payload = {
