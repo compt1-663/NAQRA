@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NAQRA — Administration</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+:root {
+  --bg:#f4f5f7;
+  --card:#fff;
+  --text:#202124;
+  --muted:#737780;
+  --border:#e5e7eb;
+  --dark:#202124;
+  --blue:#315bd6;
+  --red:#c62828;
+  --green:#18864b;
+}
+* { box-sizing:border-box; }
+body {
+  margin:0;
+  font-family:Arial,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+}
+button,input,textarea,select { font:inherit; }
+button { cursor:pointer; }
+button:disabled { opacity:.55; cursor:not-allowed; }
+.hidden { display:none!important; }
+.container { max-width:1200px; margin:auto; padding:22px; }
+.topbar {
+  display:flex; justify-content:space-between; align-items:center;
+  gap:14px; flex-wrap:wrap; margin-bottom:22px;
+}
+.brand { display:flex; align-items:center; gap:12px; }
+.logo {
+  width:44px;height:44px;border-radius:13px;background:var(--dark);
+  color:white;display:grid;place-items:center;font-weight:900;
+}
+.brand h1 { font-size:20px; margin:0; letter-spacing:1px; }
+.brand p { margin:5px 0 0;color:var(--muted);font-size:12px; }
+.actions { display:flex; gap:8px; flex-wrap:wrap; }
+.btn {
+  border:1px solid var(--border);border-radius:10px;padding:11px 14px;
+  background:white;color:var(--text);font-weight:700;
+}
+.btn.primary { background:var(--dark);color:white;border-color:var(--dark); }
+.btn.danger { color:var(--red);border-color:#ffd5d5;background:#fff7f7; }
+.btn.small { padding:8px 10px;font-size:12px; }
+.btn.full { width:100%; }
+.card {
+  background:var(--card);border:1px solid var(--border);
+  border-radius:16px;padding:20px;margin-bottom:18px;
+  box-shadow:0 4px 15px #00000005;
+}
+.stats { display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px; }
+.stat-label { color:var(--muted);font-size:13px;margin-bottom:10px; }
+.stat-number { font-size:28px;font-weight:800; }
+.toolbar {
+  display:flex;justify-content:space-between;align-items:center;
+  gap:12px;flex-wrap:wrap;margin-bottom:16px;
+}
+h2 { font-size:18px;margin:0 0 16px; }
+input,textarea,select {
+  width:100%;padding:12px;border:1px solid #dfe2e7;
+  border-radius:10px;background:white;outline:none;color:var(--text);
+}
+input:focus,textarea:focus,select:focus { border-color:#8995b5; }
+textarea { min-height:90px;resize:vertical; }
+.search { max-width:320px; }
+.table-wrap { overflow-x:auto; }
+table { width:100%;border-collapse:collapse;min-width:700px; }
+th,td { padding:13px 10px;text-align:left;border-bottom:1px solid var(--border); }
+th { font-size:11px;color:var(--muted);text-transform:uppercase; }
+td { font-size:13px; }
+.client-name { display:flex;align-items:center;gap:10px; }
+.avatar {
+  width:38px;height:38px;border-radius:10px;object-fit:cover;
+  background:#eceef2;display:grid;place-items:center;flex-shrink:0;
+}
+.row-actions { display:flex;gap:6px;flex-wrap:wrap; }
+.badge { padding:5px 8px;border-radius:20px;font-size:11px;font-weight:700; }
+.badge.public { background:#e8f7ed;color:var(--green); }
+.badge.private { background:#f1f2f4;color:#62666d; }
+.field { margin-bottom:14px; }
+.field label { display:block;font-weight:700;font-size:12px;margin-bottom:7px; }
+.hint { font-size:11px;color:var(--muted);margin-top:5px;line-height:1.5; }
+.form-grid { display:grid;grid-template-columns:1fr 1fr;gap:0 14px; }
+.span2 { grid-column:1/-1; }
+.modal {
+  position:fixed;inset:0;background:#0007;z-index:10;
+  display:none;align-items:center;justify-content:center;padding:15px;
+}
+.modal.show { display:flex; }
+.modal-card {
+  background:white;border-radius:16px;padding:22px;width:100%;
+  max-width:720px;max-height:92vh;overflow:auto;
+}
+.modal-head {
+  display:flex;justify-content:space-between;align-items:center;gap:10px;
+  margin-bottom:18px;
+}
+.modal-head h2 { margin:0; }
+.close { border:0;background:#f0f1f3;border-radius:8px;padding:8px 11px; }
+.form-actions { display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:18px; }
+.preview { width:70px;height:70px;border-radius:12px;object-fit:cover;background:#eee; }
+.status-line { font-size:13px;line-height:1.7;white-space:pre-wrap; }
+.toast {
+  position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+  background:#202124;color:white;padding:12px 16px;border-radius:10px;
+  z-index:30;max-width:90%;font-size:13px;
+}
+.empty { text-align:center;color:var(--muted);padding:35px 10px; }
+.login-box { max-width:420px;margin:8vh auto; }
+.login-box h2 { margin-bottom:8px; }
+.muted { color:var(--muted);font-size:13px;line-height:1.6; }
+.linkbox {
+  background:#f5f6f8;border:1px solid var(--border);padding:12px;
+  border-radius:10px;word-break:break-all;font-size:13px;margin:10px 0;
+}
+.check-row { display:flex;gap:9px;align-items:center;font-size:13px;margin:12px 0; }
+.check-row input { width:auto; }
+@media(max-width:650px) {
+  .container { padding:13px; }
+  .stats { grid-template-columns:1fr;gap:9px; }
+  .stat-number { font-size:24px; }
+  .card { padding:15px; }
+  .search { max-width:none; }
+  .form-grid { grid-template-columns:1fr; }
+  .span2 { grid-column:auto; }
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+  <section id="loginSection" class="card login-box">
+    <div class="brand" style="margin-bottom:24px">
+      <div class="logo">N</div>
+      <div>
+        <h1>NAQRA</h1>
+        <p>Administration sécurisée</p>
+      </div>
+    </div>
+
+    <h2>Connexion</h2>
+    <p class="muted">Connectez-vous avec votre compte Supabase.</p>
+
+    <form id="loginForm">
+      <div class="field">
+        <label for="email">Adresse e-mail</label>
+        <input id="email" type="email" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label for="password">Mot de passe</label>
+        <input id="password" type="password" autocomplete="current-password" required>
+      </div>
+      <button class="btn primary full" type="submit">Se connecter</button>
+    </form>
+    <p id="loginMessage" class="muted" role="status"></p>
+  </section>
+
+  <main id="dashboard" class="hidden">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo">N</div>
+        <div>
+          <h1>NAQRA</h1>
+          <p>Gestion des pages clients</p>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="addBtn">+ Nouveau client</button>
+        <button class="btn" id="diagnosticsBtn">Diagnostic</button>
+        <button class="btn" id="logoutBtn">Déconnexion</button>
+      </div>
+    </header>
+
+    <section class="stats">
+      <div class="card">
+        <div class="stat-label">Total des clients</div>
+        <div class="stat-number" id="totalClients">0</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">Pages publiques</div>
+        <div class="stat-number" id="publicClients">0</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">Pages privées</div>
+        <div class="stat-number" id="privateClients">0</div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="toolbar">
+        <h2 style="margin:0">Mes clients</h2>
+        <input class="search" id="searchInput" type="search" placeholder="Rechercher un client...">
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Client</th>
+              <th>Identifiant</th>
+              <th>Visibilité</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="clientsBody">
+            <tr><td colspan="4" class="empty">Chargement...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Formulaire client -->
+<div class="modal" id="clientModal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2 id="formTitle">Nouveau client</h2>
+      <button class="close" data-close="clientModal" type="button">✕</button>
+    </div>
+
+    <form id="clientForm">
+      <input type="hidden" id="clientId">
+
+      <div class="form-grid">
+        <div class="field">
+          <label for="clientName">Nom du client *</label>
+          <input id="clientName" required maxlength="120" placeholder="Nom de la boutique">
+        </div>
+        <div class="field">
+          <label for="clientSlug">Identifiant de page *</label>
+          <input id="clientSlug" required maxlength="80" pattern="[a-zA-Z0-9-]+" placeholder="ma-boutique">
+          <div class="hint">Lettres sans accents, chiffres et tirets uniquement.</div>
+        </div>
+
+        <div class="field span2">
+          <label for="description">Description</label>
+          <textarea id="description" maxlength="1000" placeholder="Présentation de l'activité"></textarea>
+        </div>
+
+        <div class="field">
+          <label for="instagram">Instagram</label>
+          <input id="instagram" type="url" placeholder="https://instagram.com/...">
+        </div>
+        <div class="field">
+          <label for="facebook">Facebook</label>
+          <input id="facebook" type="url" placeholder="https://facebook.com/...">
+        </div>
+        <div class="field">
+          <label for="tiktok">TikTok</label>
+          <input id="tiktok" type="url" placeholder="https://tiktok.com/@...">
+        </div>
+        <div class="field">
+          <label for="snapchat">Snapchat</label>
+          <input id="snapchat" type="url" placeholder="https://snapchat.com/add/...">
+        </div>
+        <div class="field">
+          <label for="website">Site web</label>
+          <input id="website" type="url" placeholder="https://example.com">
+        </div>
+        <div class="field">
+          <label for="googleMaps">Google Maps</label>
+          <input id="googleMaps" type="url" placeholder="Lien Google Maps">
+        </div>
+        <div class="field">
+          <label for="phone">Téléphone principal</label>
+          <input id="phone" type="tel" placeholder="+213...">
+        </div>
+        <div class="field">
+          <label for="phone2">Téléphone secondaire</label>
+          <input id="phone2" type="tel" placeholder="+213...">
+        </div>
+        <div class="field">
+          <label for="whatsapp">WhatsApp principal</label>
+          <input id="whatsapp" type="tel" placeholder="+213...">
+        </div>
+        <div class="field">
+          <label for="whatsapp2">WhatsApp secondaire</label>
+          <input id="whatsapp2" type="tel" placeholder="+213...">
+        </div>
+
+        <div class="field">
+          <label for="profileFile">Photo de profil</label>
+          <input id="profileFile" type="file" accept="image/jpeg,image/png,image/webp">
+          <img id="profilePreview" class="preview hidden" alt="Aperçu du profil">
+          <div class="hint">JPG, PNG ou WebP, maximum 5 Mo.</div>
+        </div>
+        <div class="field">
+          <label for="coverFile">Photo de couverture</label>
+          <input id="coverFile" type="file" accept="image/jpeg,image/png,image/webp">
+          <img id="coverPreview" class="preview hidden" alt="Aperçu de la couverture">
+          <div class="hint">JPG, PNG ou WebP, maximum 5 Mo.</div>
+        </div>
+      </div>
+
+      <label class="check-row">
+        <input id="isPublic" type="checkbox" checked>
+        Rendre la page accessible publiquement
+      </label>
+
+      <p class="hint">Les images seront téléversées dans le bucket public client-images. N'utilisez que des images destinées à être publiques.</p>
+
+      <div class="form-actions">
+        <button class="btn" type="button" data-close="clientModal">Annuler</button>
+        <button class="btn primary" id="saveBtn" type="submit">Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Lien du client -->
+<div class="modal" id="linkModal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2>Lien de la page client</h2>
+      <button class="close" data-close="linkModal" type="button">✕</button>
+    </div>
+    <p class="muted">Copiez ce lien pour créer votre QR code ou programmer votre tag NFC.</p>
+    <div class="linkbox" id="clientLink"></div>
+    <div class="actions">
+      <button class="btn primary" id="copyLinkBtn">Copier le lien</button>
+      <a class="btn" id="openLinkBtn" href="#" target="_blank" rel="noopener">Ouvrir la page</a>
+    </div>
+  </div>
+</div>
+
+<!-- Diagnostic -->
+<div class="modal" id="diagnosticsModal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2>Diagnostic du site</h2>
+      <button class="close" data-close="diagnosticsModal" type="button">✕</button>
+    </div>
+    <p class="muted">Ces tests vérifient la connexion et quelques ressources essentielles. Ils ne remplacent pas un audit complet de sécurité.</p>
+    <button class="btn primary" id="runDiagnosticsBtn">Lancer les tests</button>
+    <div id="diagnosticsOutput" class="status-line" style="margin-top:16px">Prêt à tester.</div>
+  </div>
+</div>
+
+<div class="toast hidden" id="toast" role="status"></div>
+
+<script>
+"use strict";
+
+/* Configuration Supabase NAQRA */
+const SUPABASE_URL = "https://gzdaauwvteuouxuqjmbz.supabase.co";
+const SUPABASE_KEY = "sb_publishable_eicaSCmYo18u524iPoChHw_1d5t9Sqy";
+
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentUser = null;
+let currentVendor = null;
+let clients = [];
+let editingClient = null;
+let toastTimer = null;
+
+const $ = id => document.getElementById(id);
+
+function toast(message) {
+  const el = $("toast");
+  el.textContent = message;
+  el.classList.remove("hidden");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.add("hidden"), 3200);
+}
+
+function showModal(id) {
+  $(id).classList.add("show");
+}
+
+function closeModal(id) {
+  $(id).classList.remove("show");
+}
+
+document.querySelectorAll("[data-close]").forEach(button => {
+  button.addEventListener("click", () => closeModal(button.dataset.close));
+});
+
+function safeText(value) {
+  return String(value ?? "").replace(/[&<>"']/g, char => ({
+    "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
+  })[char]);
+}
+
+function normalizeSlug(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+}
+
+function validHttpUrl(value) {
+  if (!value) return true;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
+function pageUrl(slug) {
+  const url = new URL("./index.html", window.location.href);
+  url.searchParams.set("id", slug);
+  return url.href;
+}
+
+function setLoginMessage(message) {
+  $("loginMessage").textContent = message;
+}
+
+async function loadSession() {
+  const { data, error } = await db.auth.getSession();
+  if (error) throw error;
+
+  const session = data.session;
+  if (!session) {
+    showLogin();
+    return;
+  }
+
+  currentUser = session.user;
+  await loadVendor();
+}
+
+function showLogin() {
+  $("dashboard").classList.add("hidden");
+  $("loginSection").classList.remove("hidden");
+}
+
+function showDashboard() {
+  $("loginSection").classList.add("hidden");
+  $("dashboard").classList.remove("hidden");
+}
+
+async function loadVendor() {
+  const { data, error } = await db
+    .from("vendors")
+    .select("id,name,email,role,status,user_id")
+    .eq("user_id", currentUser.id)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  if (!data || data.status !== "active") {
+    await db.auth.signOut();
+    currentUser = null;
+    currentVendor = null;
+    showLogin();
+    setLoginMessage("Aucun compte vendeur actif n'est associé à cet utilisateur.");
+    return;
+  }
+
+  currentVendor = data;
+  showDashboard();
+  await loadClients();
+}
+
+$("loginForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  const button = $("loginForm").querySelector("button[type=submit]");
+  button.disabled = true;
+  setLoginMessage("Connexion en cours...");
+
+  try {
+    const { data, error } = await db.auth.signInWithPassword({
+      email: $("email").value.trim(),
+      password: $("password").value
+    });
+
+    if (error) throw error;
+    currentUser = data.user;
+    await loadVendor();
+    setLoginMessage("");
+  } catch (error) {
+    console.error(error);
+    setLoginMessage("Connexion impossible : " + (error.message || "erreur inconnue"));
+  } finally {
+    button.disabled = false;
+  }
+});
+
+$("logoutBtn").addEventListener("click", async () => {
+  const { error } = await db.auth.signOut();
+  if (error) {
+    toast("Erreur lors de la déconnexion.");
+    return;
+  }
+  currentUser = null;
+  currentVendor = null;
+  clients = [];
+  showLogin();
+});
+
+async function loadClients() {
+  if (!currentVendor) return;
+
+  $("clientsBody").innerHTML =
+    '<tr><td colspan="4" class="empty">Chargement...</td></tr>';
+
+  const { data, error } = await db
+    .from("clients")
+    .select("*")
+    .eq("vendor_id", currentVendor.id)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error(error);
+    $("clientsBody").innerHTML =
+      '<tr><td colspan="4" class="empty">Erreur de chargement. Vérifiez les politiques RLS.</td></tr>';
+    toast("Impossible de charger les clients.");
+    return;
+  }
+
+  clients = data || [];
+  updateStats();
+  renderClients();
+}
+
+function updateStats() {
+  $("totalClients").textContent = clients.length;
+  $("publicClients").textContent = clients.filter(c => c.is_public !== false).length;
+  $("privateClients").textContent = clients.filter(c => c.is_public === false).length;
+}
+
+function renderClients() {
+  const search = $("searchInput").value.trim().toLowerCase();
+  const list = clients.filter(client =>
+    String(client.name || "").toLowerCase().includes(search) ||
+    String(client.slug || "").toLowerCase().includes(search)
+  );
+
+  if (!list.length) {
+    $("clientsBody").innerHTML =
+      '<tr><td colspan="4" class="empty">Aucun client trouvé. Cliquez sur « Nouveau client » pour commencer.</td></tr>';
+    return;
+  }
+
+  $("clientsBody").innerHTML = list.map(client => {
+    const image = client.profile_image || "";
+    const avatar = image
+      ? `<img class="avatar" src="${safeText(image)}" alt="" loading="lazy" onerror="this.style.display='none'">`
+      : `<div class="avatar">${safeText((client.name || "C").charAt(0).toUpperCase())}</div>`;
+
+    const visibility = client.is_public === false
+      ? '<span class="badge private">Privée</span>'
+      : '<span class="badge public">Publique</span>';
+
+    return `
+      <tr>
+        <td><div class="client-name">${avatar}<strong>${safeText(client.name || "Sans nom")}</strong></div></td>
+        <td>${safeText(client.slug || "-")}</td>
+        <td>${visibility}</td>
+        <td>
+          <div class="row-actions">
+            <button class="btn small" data-action="link" data-id="${safeText(client.id)}">Lien</button>
+            <button class="btn small" data-action="edit" data-id="${safeText(client.id)}">Modifier</button>
+            <button class="btn small danger" data-action="delete" data-id="${safeText(client.id)}">Supprimer</button>
+          </div>
+        </td>
+      </tr>`;
+  }).join("");
+}
+
+$("searchInput").addEventListener("input", renderClients);
+
+$("clientsBody").addEventListener("click", async event => {
+  const button = event.target.closest("button[data-action]");
+  if (!button) return;
+
+  const client = clients.find(c => String(c.id) === button.dataset.id);
+  if (!client) return;
+
+  if (button.dataset.action === "link") showClientLink(client);
+  if (button.dataset.action === "edit") openEditForm(client);
+  if (button.dataset.action === "delete") await deleteClient(client);
+});
+
+function showClientLink(client) {
+  if (!client.slug) {
+    toast("Ce client n'a pas d'identifiant de page.");
+    return;
+  }
+  const link = pageUrl(client.slug);
+  $("clientLink").textContent = link;
+  $("openLinkBtn").href = link;
+  showModal("linkModal");
+}
+
+$("copyLinkBtn").addEventListener("click", async () => {
+  const link = $("clientLink").textContent;
+  try {
+    await navigator.clipboard.writeText(link);
+    toast("Lien copié.");
+  } catch {
+    toast("Copie impossible. Sélectionnez le lien et copiez-le manuellement.");
+  }
+});
+
+function clearForm() {
+  $("clientForm").reset();
+  $("clientId").value = "";
+  $("profilePreview").classList.add("hidden");
+  $("coverPreview").classList.add("hidden");
+  $("profilePreview").removeAttribute("src");
+  $("coverPreview").removeAttribute("src");
+  $("formTitle").textContent = "Nouveau client";
+  editingClient = null;
+}
+
+$("addBtn").addEventListener("click", () => {
+  clearForm();
+  showModal("clientModal");
+});
+
+function setField(id, value) {
+  $(id).value = value || "";
+}
+
+function openEditForm(client) {
+  clearForm();
+  editingClient = client;
+  $("formTitle").textContent = "Modifier le client";
+  $("clientId").value = client.id;
+
+  setField("clientName", client.name);
+  setField("clientSlug", client.slug);
+  setField("description", client.description);
+  setField("instagram", client.instagram);
+  setField("facebook", client.facebook);
+  setField("tiktok", client.tiktok);
+  setField("snapchat", client.snapchat);
+  setField("website", client.website);
+  setField("googleMaps", client.google_maps);
+  setField("phone", client.phone);
+  setField("phone2", client.phone2);
+  setField("whatsapp", client.whatsapp);
+  setField("whatsapp2", client.whatsapp2);
+
+  $("isPublic").checked = client.is_public !== false;
+
+  if (client.profile_image) {
+    $("profilePreview").src = client.profile_image;
+    $("profilePreview").classList.remove("hidden");
+  }
+  if (client.cover_image) {
+    $("coverPreview").src = client.cover_image;
+    $("coverPreview").classList.remove("hidden");
+  }
+
+  showModal("clientModal");
+}
+
+$("clientName").addEventListener("input", () => {
+  if (!$("clientId").value) {
+    $("clientSlug").value = normalizeSlug($("clientName").value);
+  }
+});
+
+function previewFile(inputId, previewId) {
+  const file = $(inputId).files[0];
+  if (!file) return;
+
+  const allowed = ["image/jpeg", "image/png", "image/webp"];
+  if (!allowed.includes(file.type)) {
+    $(inputId).value = "";
+    toast("Format accepté : JPG, PNG ou WebP.");
+    return;
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    $(inputId).value = "";
+    toast("L'image dépasse la limite de 5 Mo.");
+    return;
+  }
+
+  const preview = $(previewId);
+  preview.src = URL.createObjectURL(file);
+  preview.classList.remove("hidden");
+}
+
+$("profileFile").addEventListener("change", () =>
+  previewFile("profileFile", "profilePreview")
+);
+$("coverFile").addEventListener("change", () =>
+  previewFile("coverFile", "coverPreview")
+);
+
+function formValue(id) {
+  return $(id).value.trim();
+}
+
+async function uploadImage(file, kind, clientId) {
+  if (!file) return null;
+
+  const extByType = {
+    "image/jpeg":"jpg",
+    "image/png":"png",
+    "image/webp":"webp"
+  };
+  const extension = extByType[file.type];
+  if (!extension) throw new Error("Format d'image non autorisé.");
+  if (file.size > 5 * 1024 * 1024) throw new Error("Image supérieure à 5 Mo.");
+
+  const path = `${currentVendor.id}/${clientId}/${kind}-${Date.now()}.${extension}`;
+
+  const { error } = await db.storage
+    .from("client-images")
+    .upload(path, file, {
+      contentType: file.type,
+      upsert: true
+    });
+
+  if (error) throw error;
+
+  const { data } = db.storage.from("client-images").getPublicUrl(path);
+  return data.publicUrl;
+}
+
+$("clientForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  if (!currentVendor) {
+    toast("Vous devez être connecté.");
+    return;
+  }
+
+  const button = $("saveBtn");
+  button.disabled = true;
+  button.textContent = "Enregistrement...";
+
+  try {
+    const name = formValue("clientName");
+    const slug = normalizeSlug(formValue("clientSlug"));
+
+    if (!name || !slug) throw new Error("Nom et identifiant obligatoires.");
+
+    const urlFields = ["instagram","facebook","tiktok","snapchat","website","googleMaps"];
+    for (const field of urlFields) {
+      if (!validHttpUrl(formValue(field))) {
+        throw new Error("Lien invalide dans le champ : " + field);
+      }
+    }
+
+    const duplicate = clients.find(c =>
+      String(c.slug || "").toLowerCase() === slug.toLowerCase() &&
+      String(c.id) !== String($("clientId").value)
+    );
+    if (duplicate) throw new Error("Cet identifiant est déjà utilisé par un autre client.");
+
+    const payload = {
+      vendor_id: currentVendor.id,
+      name,
+      slug,
+      description: formValue("description"),
+      instagram: formValue("instagram"),
+      facebook: formValue("facebook"),
+      tiktok: formValue("tiktok"),
+      snapchat: formValue("snapchat"),
+      website: formValue("website"),
+      google_maps: formValue("googleMaps"),
+      phone: formValue("phone"),
+      phone2: formValue("phone2"),
+      whatsapp: formValue("whatsapp"),
+      whatsapp2: formValue("whatsapp2"),
+      is_public: $("isPublic").checked
+    };
+
+    let clientId = $("clientId").value;
+    let savedClient;
+
+    if (clientId) {
+      const { data, error } = await db
+        .from("clients")
+        .update(payload)
+        .eq("id", clientId)
+        .eq("vendor_id", currentVendor.id)
+        .select("*")
+        .single();
+
+      if (error) throw error;
+      savedClient = data;
+    } else {
+      const { data, error } = await db
+        .from("clients")
+        .insert(payload)
+        .select("*")
+        .single();
+
+      if (error) throw error;
+      savedClient = data;
+      clientId = data.id;
+    }
+
+    const profileFile = $("profileFile").files[0];
+    const coverFile = $("coverFile").files[0];
+    const imageUpdates = {};
+
+    if (profileFile) {
+      imageUpdates.profile_image = await uploadImage(profileFile, "profile", clientId);
+    }
+    if (coverFile) {
+      imageUpdates.cover_image = await uploadImage(coverFile, "cover", clientId);
+    }
+
+    if (Object.keys(imageUpdates).length) {
+      const { error } = await db
+        .from("clients")
+        .update(imageUpdates)
+        .eq("id", clientId)
+        .eq("vendor_id", currentVendor.id);
+
+      if (error) throw error;
+    }
+
+    closeModal("clientModal");
+    toast("Client enregistré.");
+    await loadClients();
+
+    if (savedClient && savedClient.slug) {
+      // Le lien pourra être consulté depuis la liste des clients.
+    }
+  } catch (error) {
+    console.error(error);
+    toast(error.message || "Erreur pendant l'enregistrement.");
+  } finally {
+    button.disabled = false;
+    button.textContent = "Enregistrer";
+  }
+});
+
+async function deleteClient(client) {
+  const confirmed = confirm(
+    `Supprimer définitivement la page « ${client.name} » ? Cette action ne peut pas être annulée.`
+  );
+  if (!confirmed) return;
+
+  const { error } = await db
+    .from("clients")
+    .delete()
+    .eq("id", client.id)
+    .eq("vendor_id", currentVendor.id);
+
+  if (error) {
+    console.error(error);
+    toast("Suppression impossible : " + error.message);
+    return;
+  }
+
+  toast("Page client supprimée.");
+  await loadClients();
+}
+
+$("diagnosticsBtn").addEventListener("click", () => {
+  $("diagnosticsOutput").textContent = "Prêt à tester.";
+  showModal("diagnosticsModal");
+});
+
+async function testResource(path) {
+  try {
+    const response = await fetch(new URL(path, window.location.href), {
+      method: "HEAD",
+      cache: "no-store"
+    });
+    return response.ok ? "OK" : `HTTP ${response.status}`;
+  } catch {
+    return "Échec réseau";
+  }
+}
+
+$("runDiagnosticsBtn").addEventListener("click", async () => {
+  const output = $("diagnosticsOutput");
+  const button = $("runDiagnosticsBtn");
+  button.disabled = true;
+  output.textContent = "Tests en cours...";
+
+  const results = [];
+  try {
+    const { data: sessionData, error: sessionError } = await db.auth.getSession();
+    results.push((sessionError || !sessionData.session)
+      ? "❌ Session Supabase : non connectée"
+      : "✅ Session Supabase : connectée");
+
+    if (currentVendor) {
+      const { error } = await db
+        .from("clients")
+        .select("id")
+        .eq("vendor_id", currentVendor.id)
+        .limit(1);
+
+      results.push(error
+        ? "❌ Accès au tableau clients : " + error.message
+        : "✅ Accès au tableau clients : OK");
+    } else {
+      results.push("⚠️ Aucun vendeur actif associé à la session.");
+    }
+
+    for (const file of ["index.html", "app.js", "styles.css"]) {
+      const result = await testResource(file);
+      results.push((result === "OK" ? "✅ " : "⚠️ ") + file + " : " + result);
+    }
+
+    results.push("ℹ️ Le test ne vérifie pas toutes les politiques RLS ni le fonctionnement complet des liens et des QR codes.");
+  } catch (error) {
+    results.push("❌ Diagnostic interrompu : " + error.message);
+  } finally {
+    output.textContent = results.join("\n");
+    button.disabled = false;
+  }
+});
+
+/* Actualiser les données quand la session change */
+db.auth.onAuthStateChange((event, session) => {
+  if (event === "SIGNED_OUT") {
+    currentUser = null;
+    currentVendor = null;
+    showLogin();
+  }
+});
+
+(async function init() {
+  try {
+    await loadSession();
+  } catch (error) {
+    console.error(error);
+    showLogin();
+    setLoginMessage("Erreur d'initialisation : " + (error.message || "vérifiez Supabase."));
+  }
+})();
+</script>
+</body>
+</html>
