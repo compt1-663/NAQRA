@@ -1,3 +1,8 @@
+:root {
+  /* شفافية الكوفر: 0.9 = تظهر بنسبة 90% (غيّر القيمة إذا حبيت) */
+  --cover-opacity: 0.9;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -22,45 +27,31 @@ body {
   min-height: 100vh;
   margin: auto;
   text-align: center;
-  background: rgba(255, 255, 255, 0.72);
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.55) 420px
+  );
   overflow: hidden;
-  box-shadow: 0 15px 45px rgba(0, 0, 0, 0.08);
 }
 
-/* COVER */
+/* COVER: حاوية فارغة كمساحة، والصورة نفسها تغطي الشاشة كاملة */
 .cover {
   width: 100%;
-  height: 390px;
+  height: 300px;
   position: relative;
-  overflow: hidden;
-  background: #eeeeee;
+  background: transparent;
 }
 
 .cover img {
-  width: 100%;
-  height: 100%;
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
   object-fit: cover;
+  opacity: var(--cover-opacity);
+  z-index: -1;
   display: block;
-}
-
-/* COVER GRADIENT */
-.cover::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 230px;
-  background: linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, 0),
-    rgba(255, 255, 255, 0.25),
-    rgba(255, 255, 255, 0.65),
-    rgba(255, 255, 255, 0.92),
-    rgba(255, 255, 255, 1)
-  );
-  pointer-events: none;
-  z-index: 2;
 }
 
 /* PROFILE PHOTO */
@@ -303,14 +294,47 @@ h1 {
   font-size: 17px;
 }
 
+/* BUTTON ANIMATION: حركة كل 2 ثواني */
+@keyframes wiggle {
+  0%, 55%, 100% { transform: translateX(0) scale(1); }
+  10% { transform: translateX(-6px) scale(1.03); }
+  20% { transform: translateX(6px) scale(1.03); }
+  30% { transform: translateX(-4px) scale(1.02); }
+  40% { transform: translateX(4px) scale(1.02); }
+}
+
+.social-link,
+.contact-button {
+  animation: wiggle 2s ease-in-out infinite;
+}
+
+/* كل زر يتحرك في وقت مختلف */
+.social-link:nth-child(2),
+.contact-button:nth-child(2) { animation-delay: 0.2s; }
+
+.social-link:nth-child(3),
+.contact-button:nth-child(3) { animation-delay: 0.4s; }
+
+.contact-button:nth-child(4) { animation-delay: 0.6s; }
+.contact-button:nth-child(5) { animation-delay: 0.8s; }
+
+/* تتوقف الحركة كي يلمس الزبون الزر */
+.social-link:hover,
+.contact-button:hover {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .social-link,
+  .contact-button {
+    animation: none;
+  }
+}
+
 /* MOBILE */
 @media (max-width: 500px) {
   .cover {
-    height: 360px;
-  }
-
-  .cover::after {
-    height: 220px;
+    height: 260px;
   }
 
   .profile-picture {
