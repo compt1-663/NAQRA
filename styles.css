@@ -288,7 +288,7 @@ h1 {
 .footer {
   padding: 35px 20px 30px;
   color: #000000;
-  text-shadow: 0 1px 6px rgba(255);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.7);
   font-family: Arial, sans-serif;
   font-size: 14px;
 }
@@ -309,7 +309,7 @@ h1 {
 
 .social-link,
 .contact-button {
-  animation: wiggle 3s ease-in-out infinite;
+  animation: wiggle 2s ease-in-out infinite;
 }
 
 /* كل زر يتحرك في وقت مختلف */
